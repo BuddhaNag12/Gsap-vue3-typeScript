@@ -1,66 +1,48 @@
 <template>
   <div class="contact">
-    <h1>Home</h1>
-   <section id="first">
-      <transition-group
-      appear
+    <h1 v-if="warning">Add some text</h1>
+    <h1 v-else>Todos</h1>
+    <form @submit.prevent="onSubmit">
+      <div class="container">
+        <input
+          type="text"
+          name="todo"
+          id="todo"
+          v-model="newTodo"
+          autocomplete="false"
+          autocorrect="false"
+        />
+      </div>
+      <button type="submit">Add</button>
+    </form>
+    <transition-group
+      v-if="todos.length > 0"
       tag="ul"
-      @before-enter="beforeEnter"
+      @beforeEnter="beforeEnter"
       @enter="enter"
+      @beforeLeave="beforeLeave"
+      @leave="leave"
     >
-      <li v-for="(icon, index) in icons" :key="icon.name" :data-index="index">
-        <span class="material-icons">{{ icon.name }}</span>
-        <div>{{ icon.text }}</div>
+      <li
+        v-for="(text, index) in todos"
+        :key="index"
+        @click="toggleTodo(text)"
+        :class="text.done ? 'done' : ''"
+        :data-key="index"
+      >
+        {{ text.text }}
+        <span class="material-icons" @click="deleteTodo(index)"> delete </span>
       </li>
     </transition-group>
-   </section>
-   <section id="second">
-      <transition-group
-      appear
-      tag="ul"
-      @before-enter="beforeEnter"
-      @enter="enter"
-    >
-      <li v-for="(icon, index) in icons" :key="icon.name" :data-index="index">
-        <span class="material-icons">{{ icon.name }}</span>
-        <div>{{ icon.text }}</div>
-      </li>
-    </transition-group>
-   </section>
-   <section id="third">
-      <transition-group
-      appear
-      tag="ul"
-      @before-enter="beforeEnter"
-      @enter="enter"
-    >
-      <li v-for="(icon, index) in icons" :key="icon.name" :data-index="index">
-        <span class="material-icons">{{ icon.name }}</span>
-        <div>{{ icon.text }}</div>
-      </li>
-    </transition-group>
-   </section>
-   <section id="fourth">
-      <transition-group
-      appear
-      tag="ul"
-      @before-enter="beforeEnter"
-      @enter="enter"
-    >
-      <li v-for="(icon, index) in icons" :key="icon.name" :data-index="index">
-        <span class="material-icons">{{ icon.name }}</span>
-        <div>{{ icon.text }}</div>
-      </li>
-    </transition-group>
-   </section>
-   
-    <button @click="ScrollToTop">ScrollToTop</button>
+    <div v-else>No Todos found</div>
   </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, ref } from "vue";
-import {ScrollToPlugin} from 'gsap/ScrollToPlugin';
+import { computed, defineComponent, onMounted, ref } from "vue";
+import { ScrollToPlugin } from "gsap/ScrollToPlugin";
+import { todos } from "../state";
+import { Todo } from "../types";
 import gsap from "gsap";
 gsap.registerPlugin(ScrollToPlugin);
 
@@ -68,38 +50,77 @@ export default defineComponent({
   name: "Home",
 
   setup() {
-    const icons = ref([
-      { name: "alternate_email", text: "by email" },
-      { name: "local_phone", text: "by phone" },
-      { name: "local_post_office", text: "by post" },
-      { name: "local_fire_department", text: "by smoke signal" },
-    ]);
-    const beforeEnter = (el: any) => {
-      el.style.opacity = 0;
-      el.style.transform = "translateY(100px)";
-    };
-    const enter = (el: any, done: any) => {
-      gsap.to(el, {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        onComplete: done,
-        delay: el.dataset.index * 0.2,
+    const newTodo = ref("");
+    const warning = ref(false);
+
+    const onSubmit = () => {
+      const below = window.pageYOffset;
+
+      gsap.to(window, {
+        scrollTo: below + 100,
       });
-    };
-    // const afterEnter = (el: Element) => {
-    //   gsap.to(el, {
-    //     opacity: 0,
-    //     y: -100,
-    //     duration: 0.8,
-    //     delay: 1,
-    //   });
-    // };
-    const ScrollToTop = () => {
-      gsap.to(window,{scrollTo:0,duration:1,ease:'ease'})
+      newTodo.value
+        ? todos.value.push({
+            done: false,
+            text: newTodo.value,
+          })
+        : (warning.value = true);
+      newTodo.value = "";
     };
 
-    return { icons, beforeEnter, enter,ScrollToTop };
+
+    const toggleTodo = (todo: Todo) => {
+      todo.done = !todo.done;
+    };
+
+    const beforeEnter = (el: any) => {
+      gsap.from(el, {
+        y: -50,
+        opacity: 0,
+        ease: "ease-in",
+      });
+    };
+    const enter = (el: any) => {
+      gsap.to(el, {
+        y: 0,
+        opacity: 1,
+        ease: "ease-in",
+        delay: el.dataset.key * 2,
+      });
+    };
+    const beforeLeave = (el: any) => {
+      gsap.from(el, {
+        y: 0,
+        opacity: 1,
+        ease: "ease-out",
+      });
+    };
+
+    const leave = (el: any) => {
+      gsap.to(el, {
+        y: -20,
+        opacity: 0,
+        ease: "ease-out",
+        delay: el.dataset.key * 200,
+      });
+    };
+
+    const deleteTodo = (index: number) => {
+      todos.value.splice(index, 1);
+    };
+
+    return {
+      todos,
+      newTodo,
+      onSubmit,
+      toggleTodo,
+      enter,
+      beforeEnter,
+      warning,
+      deleteTodo,
+      beforeLeave,
+      leave,
+    };
   },
 });
 </script>
@@ -109,21 +130,29 @@ export default defineComponent({
   text-align: center;
 }
 
-.contact ul {
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-gap: 20px;
-  max-width: 400px;
-  margin: 60px auto;
+ul {
+  padding: 2px;
+  margin: 2px;
+  display: flex;
+  flex-direction: column;
+  justify-items: center;
+  align-items: center;
+  justify-content: space-between;
 }
-.contact li {
+li {
   list-style-type: none;
-  background: white;
+  background: rgb(255, 98, 98);
+  color: white;
   padding: 30px;
   border-radius: 10px;
   box-shadow: 1px 3px 5px rgba(0, 0, 0, 0.1);
   cursor: pointer;
+  margin: 2px;
   line-height: 1.5em;
+  text-overflow: ellipsis;
+}
+.done {
+  background: rgb(47, 255, 6);
+  color: rgb(255, 255, 255);
 }
 </style>
